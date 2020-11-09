@@ -120,16 +120,16 @@ static bool is_valid_response(const char* response, int size)
    return equal;
 }
 
-static float data_value_to_float(DataValue data_value)
+static float data_value_to_float(WittProtocol::DataValue data_value)
 {
    float res = 0.0f;
 
-   res = std::stof(string(data_value.data, DATA_VALUE_SIZE));
+   res = std::stof(string(data_value.data, WittProtocol::DATA_VALUE_SIZE));
 
    return res;
 }
 
-vector<char> generateQuery(WittProtocol::MSGType msg_type,
+vector<char> WittProtocol::generateQuery(WittProtocol::MSGType msg_type,
                        int start_axis,
                        int number_of_axis,
                        int node,
@@ -158,18 +158,18 @@ vector<char> generateQuery(WittProtocol::MSGType msg_type,
 
 
 
-vector<DTMResponse> decodeResponse(const vector<char>& response_)
+vector<WittProtocol::DTMResponse> WittProtocol::decodeResponse(const vector<char>& response_)
 {
-   vector<DTMResponse> responses;
+   vector<WittProtocol::DTMResponse> responses;
 
    const char* response = response_.data();
    const char* end_response = response + response_.size();
 
    while (response != end_response)
    {
-      DTMResponse resp = {};
+      WittProtocol::DTMResponse resp = {};
 
-      WittHeader* witt_header = (WittHeader*)response;
+      WittProtocol::WittHeader* witt_header = (WittProtocol::WittHeader*)response;
 
       try
       {
@@ -183,7 +183,7 @@ vector<DTMResponse> decodeResponse(const vector<char>& response_)
       resp.start_axis = ascii_hex_to_int(witt_header->start_axis);
       resp.num_of_axes = ascii_hex_to_int(witt_header->num_of_axes);
 
-      int resp_size = WITT_HEADER_SIZE + (resp.num_of_axes * DATA_VALUE_SIZE) + 1 + 2; // 1: EOT, 2: CRC
+      int resp_size = WittProtocol::WITT_HEADER_SIZE + (resp.num_of_axes * WittProtocol::DATA_VALUE_SIZE) + 1 + 2; // 1: EOT, 2: CRC
 
       if (!is_valid_response(response, resp_size))
       {
@@ -193,14 +193,14 @@ vector<DTMResponse> decodeResponse(const vector<char>& response_)
 
       resp.valid = true;
 
-      response += WITT_HEADER_SIZE;
+      response += WittProtocol::WITT_HEADER_SIZE;
 
       while (*response != EOT_VAL)
       {
-         DataValue data_value = {};
+         WittProtocol::DataValue data_value = {};
 
          for (int i = 0;
-              i < DATA_VALUE_SIZE;
+              i < WittProtocol::DATA_VALUE_SIZE;
               ++i)
          {
             char c = (char)*response;
@@ -222,7 +222,7 @@ vector<DTMResponse> decodeResponse(const vector<char>& response_)
 }
 
 
-vector<char> generateDTM(WittProtocol::MSGType msg_type,
+vector<char> WittProtocol::generateDTM(WittProtocol::MSGType msg_type,
                      int start_axis,
                      int number_of_axis,
                      int node,

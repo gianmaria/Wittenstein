@@ -38,9 +38,6 @@ enum MSGType
    motor_error_status = 177
 };
 
-
-}
-
 #pragma pack(push, 1)
 
 union AxisStatus
@@ -112,4 +109,4 @@ vector<char> generateDTM(WittProtocol::MSGType msg_type,
                          const vector<float>& values = vector<float>(),
                          int tag = 0);
 
-
+}

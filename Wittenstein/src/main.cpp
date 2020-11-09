@@ -33,7 +33,7 @@ struct AxisInfo
    float position;
    float force;
    float current_trim;
-   AxisStatus status;
+   WittProtocol::AxisStatus status;
 };
 
 struct JoystickInfo
@@ -53,7 +53,7 @@ sockaddr_in SCM_addr = {};
 
 #define DEBUG_PRINT 0
 
-const char* axis_status_to_string(AxisStatus axis_status)
+const char* axis_status_to_string(WittProtocol::AxisStatus axis_status)
 {
    if (axis_status.un_initialised)
    {
@@ -91,7 +91,7 @@ const char* axis_status_to_string(AxisStatus axis_status)
 }
 
 
-void decode_can_message(const DTMResponse& resp)
+void decode_can_message(const WittProtocol::DTMResponse& resp)
 {
    u16 val0 = (u16)resp.data_values[0]; // GRIP ID
    byte val1 = (byte)resp.data_values[1];
@@ -133,7 +133,7 @@ void decode_can_message(const DTMResponse& resp)
 
 }
 
-void decode_axes_status(const DTMResponse& resp)
+void decode_axes_status(const WittProtocol::DTMResponse& resp)
 {
    for (int i = 0;
         i < resp.num_of_axes;
@@ -141,20 +141,20 @@ void decode_axes_status(const DTMResponse& resp)
    {
       u8 axis_status_raw = resp.data_values[i];
 
-      AxisStatus* axis_status = (AxisStatus*)&axis_status_raw;
+      WittProtocol::AxisStatus* axis_status = (WittProtocol::AxisStatus*)&axis_status_raw;
 
       g_joystick.axes[i].status = *axis_status;
 
 #if DEBUG_PRINT
       const char* axis_status_str = axis_status_to_string(*axis_status);
-      printf("Axis %d status: %s\n", i+1, axis_status_str);
+      printf("Axis %d status: %s\n", i + 1, axis_status_str);
 #endif
 
    }
 
 }
 
-void decode_axes_position(const DTMResponse& resp)
+void decode_axes_position(const WittProtocol::DTMResponse& resp)
 {
    for (int i = 0;
         i < resp.num_of_axes;
@@ -164,7 +164,7 @@ void decode_axes_position(const DTMResponse& resp)
    }
 }
 
-void decode_axes_force(const DTMResponse& resp)
+void decode_axes_force(const WittProtocol::DTMResponse& resp)
 {
    for (int i = 0;
         i < resp.num_of_axes;
@@ -174,7 +174,7 @@ void decode_axes_force(const DTMResponse& resp)
    }
 }
 
-void decode_trim(const DTMResponse& resp)
+void decode_trim(const WittProtocol::DTMResponse& resp)
 {
    for (int i = 0;
         i < resp.num_of_axes;
@@ -189,8 +189,8 @@ void decode_trim(const DTMResponse& resp)
 
 void send_data(const vector<char>& data)
 {
-   int ret = sendto(sock, data.data(), data.size(), 0, 
-                           (SOCKADDR*)&SCM_addr, sizeof(SCM_addr));
+   int ret = sendto(sock, data.data(), data.size(), 0,
+                    (SOCKADDR*)&SCM_addr, sizeof(SCM_addr));
 
    //printf("sendto() sent: %d bytes\n", ret);
 
@@ -259,13 +259,13 @@ void get_data()
    g_SCM_online = true;
 
    raw_response.shrink_to_fit();
-   auto dtm_resps = decodeResponse(raw_response);
+   auto dtm_resps = WittProtocol::decodeResponse(raw_response);
 
    for (int resp_idx = 0;
         resp_idx < dtm_resps.size();
         ++resp_idx)
    {
-      const DTMResponse& dtm_resp = dtm_resps[resp_idx];
+      const WittProtocol::DTMResponse& dtm_resp = dtm_resps[resp_idx];
 
       if (!dtm_resp.valid)
       {

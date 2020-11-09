@@ -4,12 +4,15 @@
 #include "wittenstein_protocol.h"
 
 
-#define STX_VAL 0x2
-#define EOT_VAL 0x4
-#define ENQ_VAL 0x5
+static enum
+{
+   STX_VAL = 0x2,
+   EOT_VAL = 0x4,
+   ENQ_VAL = 0x5
+};
 
 
-static unsigned short generateCRC(char* cBuf, int iSize)
+static unsigned short generateCRC(const char* cBuf, int iSize)
 {
    unsigned short usCRC, usLSB, i, j;
    char* c;
@@ -90,7 +93,7 @@ static int ascii_hex_to_int(char c)
    return res;
 }
 
-static unsigned short swap(unsigned short input)
+static unsigned short swap_byte_u16(unsigned short input)
 {
    unsigned short res = 0;
 
@@ -103,23 +106,14 @@ static unsigned short swap(unsigned short input)
    return res;
 }
 
-static bool is_valid_response(char* response)
+static bool is_valid_response(const char* response, int size)
 {
-   int payload_size = 0;
+   if (!response)
+      return false;
 
-   char* data = response;
+   unsigned short response_crc = swap_byte_u16(*(unsigned short*)(response + size - 2));
 
-   while (*data != EOT_VAL)
-   {
-      ++payload_size;
-      ++data;
-   }
-
-   ++payload_size; // skip EOT_VAL  
-
-   unsigned short response_crc = swap(*(unsigned short*)(response + payload_size));
-
-   unsigned short expected_crc = generateCRC(response, payload_size);
+   unsigned short expected_crc = generateCRC(response, size - 2);
 
    bool equal = (response_crc == expected_crc);
 
@@ -164,52 +158,67 @@ vector<char> generateQuery(WittProtocol::MSGType msg_type,
 
 
 
-DTMResponse decodeResponse(char* response)
+vector<DTMResponse> decodeResponse(const vector<char>& response_)
 {
-   DTMResponse res = {};
+   vector<DTMResponse> responses;
 
-   if (!is_valid_response(response))
+   const char* response = response_.data();
+   const char* end_response = response + response_.size();
+
+   while (response != end_response)
    {
-      return res;
-   }
-   
-   res.valid = true;
-      
-   WittHeader* witt_header = (WittHeader*)response;
-   
-   res.data_code = 0;
-   try
-   {
-      res.data_code = std::stoi(string(witt_header->data_code, 2), 0, 16);
-   }
-   catch (...)
-   { }
+      DTMResponse resp = {};
 
-   res.node           = ascii_hex_to_int(witt_header->node);
-   res.tag            = ascii_hex_to_int(witt_header->tag);
-   res.start_axis     = ascii_hex_to_int(witt_header->start_axis);
-   res.num_of_axes    = ascii_hex_to_int(witt_header->num_of_axes);
+      WittHeader* witt_header = (WittHeader*)response;
 
-   response += WITT_HEADER_SIZE;
-
-   while (*response != EOT_VAL)
-   {
-      DataValue data_value;
-      
-      for (int i = 0;
-           i < DATA_VALUE_SIZE;
-           ++i)
+      try
       {
-         char c = (char)*response;
-         data_value.data[i] = c;
-         ++response;
+         resp.data_code = (WittProtocol::MSGType)std::stoi(string(witt_header->data_code, 2), 0, 16);
+      } catch (...)
+      {
       }
 
-      float data = data_value_to_float(data_value);
-      res.data_values.push_back(data);
+      resp.node = ascii_hex_to_int(witt_header->node);
+      resp.tag = ascii_hex_to_int(witt_header->tag);
+      resp.start_axis = ascii_hex_to_int(witt_header->start_axis);
+      resp.num_of_axes = ascii_hex_to_int(witt_header->num_of_axes);
+
+      int resp_size = WITT_HEADER_SIZE + (resp.num_of_axes * DATA_VALUE_SIZE) + 1 + 2; // 1: EOT, 2: CRC
+
+      if (!is_valid_response(response, resp_size))
+      {
+         responses.push_back(resp);
+         continue;
+      }
+
+      resp.valid = true;
+
+      response += WITT_HEADER_SIZE;
+
+      while (*response != EOT_VAL)
+      {
+         DataValue data_value = {};
+
+         for (int i = 0;
+              i < DATA_VALUE_SIZE;
+              ++i)
+         {
+            char c = (char)*response;
+            data_value.data[i] = c;
+            ++response;
+         }
+
+         float data = data_value_to_float(data_value);
+         resp.data_values.push_back(data);
+      }
+
+      ++response; // skip EOT
+      response += 2; // skip CRC
+
+      responses.push_back(resp);
    }
 
-   return res;
+   return responses;
 }
 
 

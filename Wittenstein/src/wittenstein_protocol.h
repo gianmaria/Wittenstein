@@ -13,11 +13,17 @@ typedef unsigned short u16;
 
 namespace WittProtocol
 {
+
+enum { start_axis = 0, all_axes = 2 };
+
 enum MSGType
 {
+   invalid = 0,
+
    go_active = 1,
    start_traversal = 2,
    define_master_curve = 3,
+   trim_command = 6,
    q_feel_value = 7,
    go_passive = 12,
    static_friction = 21,
@@ -28,6 +34,7 @@ enum MSGType
    status = 51,
    can_io_message = 52,
    create_asynchronous_link = 53,
+   actual_trim_position = 92,
    motor_error_status = 177
 };
 
@@ -60,9 +67,13 @@ struct WittHeader
    char start_axis;
    char num_of_axes;
 };
-#define WITT_HEADER_SIZE sizeof(WittHeader)
 
-#define DATA_VALUE_SIZE 7
+enum
+{
+   DATA_VALUE_SIZE = 7,
+   WITT_HEADER_SIZE = sizeof(WittHeader)
+};
+
 
 struct DataValue
 {
@@ -76,7 +87,7 @@ struct DTMResponse
 {
    bool valid;
 
-   int data_code;
+   WittProtocol::MSGType data_code;
    int node;
    int tag;
    int start_axis;
@@ -92,7 +103,7 @@ vector<char> generateQuery(WittProtocol::MSGType msg_type,
                            int node = 0,
                            int tag = 0);
 
-DTMResponse decodeResponse(char* response);
+vector<DTMResponse> decodeResponse(const vector<char>& response);
 
 vector<char> generateDTM(WittProtocol::MSGType msg_type,
                          int start_axis = 0,
